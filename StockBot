@@ -71,7 +71,7 @@
     <div id="result"></div>
 
     <script>
-        const API_KEY = 'YOUR_ALPHA_VANTAGE_API_KEY'; // Replace with your Alpha Vantage API key
+        const API_KEY = 'ADF5Y0PZPLVV7WVB'; // Replace with your Alpha Vantage API key
 
         async function getStockAdvice() {
             const symbol = document.getElementById('stockSymbol').value.toUpperCase();
