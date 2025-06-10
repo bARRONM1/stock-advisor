@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Stock Trading Advisor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .input-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 200px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: red;
+        }
+        .advice-buy {
+            color: green;
+            font-weight: bold;
+        }
+        .advice-sell {
+            color: red;
+            font-weight: bold;
+        }
+        .advice-hold {
+            color: orange;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Daily Stock Trading Advisor</h1>
+    <div class="input-container">
+        <input type="text" id="stockSymbol" placeholder="Enter stock symbol (e.g., AAPL)" />
+        <button onclick="getStockAdvice()">Get Advice</button>
+    </div>
+    <div id="result"></div>
+
+    <script>
+        const API_KEY = 'YOUR_ALPHA_VANTAGE_API_KEY'; // Replace with your Alpha Vantage API key
+
+        async function getStockAdvice() {
+            const symbol = document.getElementById('stockSymbol').value.toUpperCase();
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Loading...';
+
+            try {
+                // Fetch daily stock data
+                const dailyData = await fetchStockData(symbol, 'TIME_SERIES_DAILY');
+                const smaData = await fetchStockData(symbol, 'SMA', 'interval=daily&time_period=20');
+                const rsiData = await fetchStockData(symbol, 'RSI', 'interval=daily&time_period=14');
+
+                if (!dailyData['Time Series (Daily)'] || !smaData['Technical Analysis: SMA'] || !rsiData['Technical Analysis: RSI']) {
+                    throw new Error('Incomplete data received from API');
+                }
+
+                // Get the latest data
+                const dates = Object.keys(dailyData['Time Series (Daily)']).sort().reverse();
+                const latestDate = dates[0];
+                const latestPrice = parseFloat(dailyData['Time Series (Daily)'][latestDate]['4. close']);
+                const latestSMA = parseFloat(smaData['Technical Analysis: SMA'][latestDate]['SMA']);
+                const latestRSI = parseFloat(rsiData['Technical Analysis: RSI'][latestDate]['RSI']);
+
+                // Generate trading advice
+                const advice = generateTradingAdvice(latestPrice, latestSMA, latestRSI);
+
+                // Display result
+                resultDiv.innerHTML = `
+                    <h2>${symbol} Trading Advice</h2>
+                    <p><strong>Latest Close Price:</strong> $${latestPrice.toFixed(2)}</p>
+                    <p><strong>20-Day SMA:</strong> $${latestSMA.toFixed(2)}</p>
+                    <p><strong>14-Day RSI:</strong> ${latestRSI.toFixed(2)}</p>
+                    <p><strong>Advice:</strong> <span class="advice-${advice.toLowerCase()}">${advice}</span></p>
+                    <p><small>Based on data from ${latestDate}. Note: This is not financial advice. Always do your own research.</small></p>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function fetchStockData(symbol, endpoint, extraParams = '') {
+            const baseUrl = 'https://www.alphavantage.co/query';
+            const url = `${baseUrl}?function=${endpoint}&symbol=${symbol}&apikey=${API_KEY}&${extraParams}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Failed to fetch stock data');
+            }
+            const data = await response.json();
+            if (data['Error Message'] || data['Note']) {
+                throw new Error(data['Error Message'] || 'API limit reached. Try again later.');
+            }
+            return data;
+        }
+
+        function generateTradingAdvice(price, sma, rsi) {
+            // Simple trading logic based on SMA and RSI
+            if (price > sma && rsi < 70) {
+                return 'Buy';
+            } else if (price < sma || rsi > 70) {
+                return 'Sell';
+            } else {
+                return 'Hold';
+            }
+        }
+    </script>
+</body>
+</html>
